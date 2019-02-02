@@ -1,7 +1,6 @@
 from keys.config import PARAMS
 from apiclient.discovery import build
-from discord import Embed, HTTPException
-from bot import leave
+from discord import Embed
 import discord
 import re
 import youtube_dl
@@ -205,7 +204,7 @@ class YoutubePlayer:
                 # delete jinx youtube player message
                 asyncio.run_coroutine_threadsafe(self.servers[guild_id]['jinxMessage'].delete(), self.client.loop)
                 # make jinx leave voice chat
-                asyncio.run_coroutine_threadsafe(ctx.invoke(leave), self.client.loop)
+                asyncio.run_coroutine_threadsafe(voice.disconnect(), self.client.loop)
             else:
                 if infinite:
                     self.current[ctx.guild.id] = 0
