@@ -170,22 +170,40 @@ class YoutubePlayer:
                     part='snippet',
                     playlistId=playlist_id
                 ).execute()
-                response = self.youtube.playlistItems().list(
-                    part='snippet',
-                    maxResults=req_nb_vid["pageInfo"]["totalResults"],
-                    playlistId=playlist_id
-                ).execute()
-                print(response)
-                for item in response['items']:
-                    video = item["snippet"]
-                    if 'medium' in video['thumbnails']:
-                        videos_to_add.append({'url': YTLINK + video["resourceId"]["videoId"],
-                                          'thumbnail': video["thumbnails"]["medium"]["url"],
-                                          'title': video["title"]})
+                totRes = req_nb_vid["pageInfo"]["totalResults"]
+                nbReq = 0
+                tokenNext = ""
+                while tokenNext != "[STOP]":
+                    if tokenNext == "":
+                        response = self.youtube.playlistItems().list(
+                            part='snippet',
+                            maxResults=50,
+                            playlistId=playlist_id
+                        ).execute()
                     else:
-                        videos_to_add.append({'url': YTLINK + video["resourceId"]["videoId"],
-                                          'thumbnail': video["thumbnails"]["default"]["url"],
-                                          'title': video["title"]})
+                        response = self.youtube.playlistItems().list(
+                            part='snippet',
+                            maxResults=50,
+                            playlistId=playlist_id,
+                            pageToken=tokenNext
+                        ).execute()
+                    print(response)
+                    tokenNext = response['nextPageToken'] if 'nextPageToken' in response else "[STOP]"
+                    for item in response['items']:
+                        video = item["snippet"]
+                        if 'thumbnails' not in video:
+                            videos_to_add.append({'url': YTLINK + video["resourceId"]["videoId"],
+                                              'thumbnail': 'https://www.youtube.com/yts/img/yt_1200-vfl4C3T0K.png',
+                                              'title': video["title"]})
+                            continue
+                        if 'medium' in video['thumbnails']:
+                            videos_to_add.append({'url': YTLINK + video["resourceId"]["videoId"],
+                                              'thumbnail': video["thumbnails"]["medium"]["url"],
+                                              'title': video["title"]})
+                        else:
+                            videos_to_add.append({'url': YTLINK + video["resourceId"]["videoId"],
+                                              'thumbnail': video["thumbnails"]["default"]["url"],
+                                              'title': video["title"]})
             else:
                 if 'youtu.be' in request:
                     video_id = re.search(".*/(.*)", request).group(1)
@@ -200,7 +218,10 @@ class YoutubePlayer:
                 except HttpError as e:
                     print('An HTTP error %d occurred:\n%s' % (e.resp.status, e.content))
                 video = response['items'][0]["snippet"]
-                videos_to_add.append({'url': YTLINK+video_id, 'thumbnail': video["thumbnails"]["default"]["url"], 'title': video["title"]})
+                if 'medium' in video['thumbnails']:
+                    videos_to_add.append({'url': YTLINK+video_id, 'thumbnail': video["thumbnails"]["medium"]["url"], 'title': video["title"]})
+                else:
+                    videos_to_add.append({'url': YTLINK+video_id, 'thumbnail': video["thumbnails"]["default"]["url"], 'title': video["title"]})
             print("adding videos %s" % videos_to_add)
             if ctx.guild.id not in self.playlist:
                 self.playlist[ctx.guild.id] = []
@@ -262,15 +283,14 @@ class YoutubePlayer:
             voice.play(audio, after=my_after)
 
     async def edit_embed(self, guild_id):
+        infinite = self.servers[guild_id]['infinite'] if 'infinite' in self.servers[guild_id] else False
         embed = Embed(
                       title=self.playlist[guild_id][self.current[guild_id]]['title'],
                       color=12345678,
-                      description='Video n° `' + str(self.current[guild_id] + 1) + '` / `' + str(len(self.playlist[guild_id])) + '`'
+                      description='Video n° `' + str(self.current[guild_id] + 1) + '` / `' + str(len(self.playlist[guild_id])) + '`\n*Looping over playlist :* `' + str(infinite) + '`'
         )
-        embed.set_thumbnail(url='https://cdn.discordapp.com/avatars/297127338188079105/4b7b6e74a835176401c0c3affd5ce8d6.jpg?size=1024')
+        embed.set_thumbnail(url='https://pre00.deviantart.net/1cd4/th/pre/i/2015/330/f/d/jinx_chibi_by_yukyuen-d8pnno0.png')
         embed.set_image(url=self.playlist[guild_id][self.current[guild_id]]['thumbnail'])
-        infinite = self.servers[guild_id]['infinite'] if 'infinite' in self.servers[guild_id] else False
-        embed.set_footer(text="looping over playlist : %s" % infinite)
         print("embed created")
         if guild_id not in self.servers:
             self.servers[guild_id] = {}
