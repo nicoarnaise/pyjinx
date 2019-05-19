@@ -13,6 +13,8 @@ DEVELOPER_KEY = PARAMS["youtube"]["jinx"]
 YOUTUBE_API_SERVICE_NAME = "youtube"
 YOUTUBE_API_VERSION = "v3"
 
+MAX_RESULT_PER_PAGE = 20
+
 NEXTBTN = "⏭"
 PREVBTN = "⏮"
 PAUSEBTN = "⏯"
@@ -227,6 +229,7 @@ class YoutubePlayer:
                 self.playlist[ctx.guild.id] = []
             for video in videos_to_add:
                 self.playlist[ctx.guild.id].append(video)
+            await self.show_playlist(ctx, False)
             if ctx.guild.id not in self.is_playing or not self.is_playing[ctx.guild.id]:
                 author = ctx.message.author
                 voice = await author.voice.channel.connect()
@@ -310,3 +313,54 @@ class YoutubePlayer:
             await message.add_reaction(NEXTBTN)
             await message.add_reaction(REPLAYBTN)
             self.servers[guild_id]['jinxMessage'] = message
+
+    async def show_playlist(self, ctx, send_it, page=None):
+        guild_id = ctx.guild.id
+        self.servers[guild_id]['playlistCtx'] = ctx
+        if len(self.playlist[guild_id]) > 0:
+            if page is None:
+                page = 0 if ('playlistPage' not in self.servers[guild_id] or send_it) else self.servers[guild_id]['playlistPage']
+            if page < 0:
+                page = 0
+            while len(self.playlist[guild_id]) < page * MAX_RESULT_PER_PAGE:
+                page -= 1
+
+            embed = Embed(
+                title="Playlist for server %s :" % ctx.guild.name,
+                color=12345678
+            )
+            embed.set_thumbnail(
+                url='https://pre00.deviantart.net/1cd4/th/pre/i/2015/330/f/d/jinx_chibi_by_yukyuen-d8pnno0.png')
+
+            for i, video in enumerate(self.playlist[guild_id]):
+                if i >= page * MAX_RESULT_PER_PAGE and i < (page + 1) * MAX_RESULT_PER_PAGE:
+                    embed.add_field(name="%d/%d : " % (i, len(self.playlist[guild_id])), value=video['title'], inline=True)
+            if send_it:
+                if 'playlistMessage' in self.servers[guild_id] and self.servers[guild_id]['playlistMessage'] is not None:
+                    try:
+                        await self.servers[guild_id]['playlistMessage'].delete()
+                    except:
+                        # Catch a message removed by user
+                        pass
+                message = await ctx.message.channel.send(embed=embed)
+                await message.add_reaction(PPAGEBTN)
+                await message.add_reaction(CANCEL)
+                await message.add_reaction(NPAGEBTN)
+                self.servers[guild_id]['playlistMessage'] = message
+                self.servers[guild_id]['playlistPage'] = 0
+
+            elif self.servers[guild_id]['playlistMessage'] is not None:
+                try:
+                    # Catch a message removed by user
+                    await self.servers[guild_id]['playlistMessage'].edit(embed=embed)
+                except:
+                    self.servers[guild_id]['playlistMessage'] = None
+                    self.servers[guild_id]['playlistPage'] = 0
+                else:
+                    self.servers[guild_id]['playlistPage'] = page
+
+        else:
+            self.servers[guild_id]['playlistMessage'] = None
+            if send_it:
+                message = await ctx.message.channel.send("Your playlist is empty !")
+                await message.delete(1.0)

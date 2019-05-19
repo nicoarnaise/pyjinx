@@ -60,6 +60,10 @@ async def ytp(ctx, *, url):
         await youtube_player.add_to_playlist(ctx, url, True)
     await ctx.message.delete()
 
+@client.command(pass_context=True)
+async def ytlist(ctx):
+    await youtube_player.show_playlist(ctx, True)
+    await ctx.message.delete()
 
 @client.event
 async def on_command_error(ctx, error):
@@ -161,6 +165,24 @@ async def on_reaction_add(reaction, user):
                 else:
                     youtube_player.servers[guild_id]['infinite'] = not youtube_player.servers[guild_id]['infinite']
                 await youtube_player.edit_embed(guild_id)
+
+        if 'playlistMessage' in youtube_player.servers[guild_id] and \
+                youtube_player.servers[guild_id]['playlistMessage'] is not None and \
+                reaction.message.id == youtube_player.servers[guild_id]['playlistMessage'].id:
+            if reaction.emoji == CANCEL:
+                print('remove list')
+                await reaction.message.delete()
+                youtube_player.servers[guild_id]['playlistMessage'] = None
+                youtube_player.servers[guild_id]['playlistPage'] = 0
+                delete = False
+            if reaction.emoji == NPAGEBTN:
+                ctx = youtube_player.servers[guild_id]['playlistCtx']
+                page = youtube_player.servers[guild_id]['playlistPage']
+                await youtube_player.show_playlist(ctx, False, page + 1)
+            if reaction.emoji == PPAGEBTN:
+                ctx = youtube_player.servers[guild_id]['playlistCtx']
+                page = youtube_player.servers[guild_id]['playlistPage']
+                await youtube_player.show_playlist(ctx, False, page - 1)
 
         if delete:
             await reaction.message.remove_reaction(reaction, user)
