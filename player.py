@@ -317,6 +317,8 @@ class YoutubePlayer:
     async def show_playlist(self, ctx, send_it, page=None):
         guild_id = ctx.guild.id
         self.servers[guild_id]['playlistCtx'] = ctx
+        if guild_id not in self.playlist:
+            self.playlist[guild_id] = []
         if len(self.playlist[guild_id]) > 0:
             if page is None:
                 page = 0 if ('playlistPage' not in self.servers[guild_id] or send_it) else self.servers[guild_id]['playlistPage']
@@ -334,7 +336,7 @@ class YoutubePlayer:
 
             for i, video in enumerate(self.playlist[guild_id]):
                 if i >= page * MAX_RESULT_PER_PAGE and i < (page + 1) * MAX_RESULT_PER_PAGE:
-                    embed.add_field(name="%d/%d : " % (i, len(self.playlist[guild_id])), value=video['title'], inline=True)
+                    embed.add_field(name="%d/%d : " % (i+1, len(self.playlist[guild_id])), value="%s    " % video['title'], inline=True)
             if send_it:
                 if 'playlistMessage' in self.servers[guild_id] and self.servers[guild_id]['playlistMessage'] is not None:
                     try:
@@ -349,7 +351,7 @@ class YoutubePlayer:
                 self.servers[guild_id]['playlistMessage'] = message
                 self.servers[guild_id]['playlistPage'] = 0
 
-            elif self.servers[guild_id]['playlistMessage'] is not None:
+            elif 'playlistMessage' in self.servers[guild_id] and self.servers[guild_id]['playlistMessage'] is not None:
                 try:
                     # Catch a message removed by user
                     await self.servers[guild_id]['playlistMessage'].edit(embed=embed)
@@ -363,4 +365,4 @@ class YoutubePlayer:
             self.servers[guild_id]['playlistMessage'] = None
             if send_it:
                 message = await ctx.message.channel.send("Your playlist is empty !")
-                await message.delete(1.0)
+                await message.delete(delay=5.0)
